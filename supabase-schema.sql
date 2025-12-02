@@ -145,8 +145,8 @@ CREATE TRIGGER on_auth_user_created
 -- 6. RPC FUNCTION: UNLOCK PROMPT (Permanent Ownership)
 -- =====================================================
 CREATE OR REPLACE FUNCTION public.unlock_prompt(
-  prompt_uuid UUID,
-  cost INTEGER
+  prompt_id_input UUID,
+  cost_input INTEGER
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -173,7 +173,7 @@ BEGIN
   -- Check if user already owns this prompt
   SELECT EXISTS (
     SELECT 1 FROM public.purchases
-    WHERE user_id = current_user_id AND prompt_id = prompt_uuid
+    WHERE user_id = current_user_id AND prompt_id = prompt_id_input
   ) INTO already_owned;
 
   IF already_owned THEN
@@ -191,31 +191,31 @@ BEGIN
   WHERE id = current_user_id;
 
   -- Check if user has enough credits
-  IF current_credits < cost THEN
+  IF current_credits < cost_input THEN
     RETURN json_build_object(
       'success', false,
       'error', 'insufficient_funds',
       'message', 'Not enough credits',
-      'required', cost,
+      'required', cost_input,
       'available', current_credits
     );
   END IF;
 
   -- Deduct credits
   UPDATE public.profiles
-  SET credits = credits - cost
+  SET credits = credits - cost_input
   WHERE id = current_user_id;
 
   -- Record purchase (permanent ownership)
   INSERT INTO public.purchases (user_id, prompt_id)
-  VALUES (current_user_id, prompt_uuid);
+  VALUES (current_user_id, prompt_id_input);
 
   -- Log transaction
   INSERT INTO public.transactions (user_id, prompt_id, amount, type, description)
   VALUES (
     current_user_id,
-    prompt_uuid,
-    -cost,
+    prompt_id_input,
+    -cost_input,
     'debit',
     'Prompt unlocked'
   );
@@ -223,7 +223,7 @@ BEGIN
   -- Increment sales count
   UPDATE public.prompts
   SET sales = sales + 1
-  WHERE id = prompt_uuid;
+  WHERE id = prompt_id_input;
 
   -- Get new credit balance
   SELECT credits INTO current_credits

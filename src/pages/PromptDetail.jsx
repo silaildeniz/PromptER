@@ -86,8 +86,8 @@ const PromptDetail = () => {
 
     try {
       const { data, error: rpcError } = await supabase.rpc('unlock_prompt', {
-        prompt_uuid: id,
-        cost: prompt.cost
+        prompt_id_input: id,
+        cost_input: prompt.cost
       });
 
       if (rpcError) throw rpcError;
