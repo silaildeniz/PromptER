@@ -1,4 +1,8 @@
+import { useNavigate } from 'react-router-dom';
+
 const FilterBar = ({ selectedFilter, onFilterChange }) => {
+  const navigate = useNavigate();
+
   const filters = [
     { id: 'All', label: 'All' },
     { id: 'Image', label: 'Image' },
@@ -9,6 +13,24 @@ const FilterBar = ({ selectedFilter, onFilterChange }) => {
     { id: 'Writing & SEO', label: 'Writing & SEO' }
   ];
 
+  const handleCategoryClick = (category) => {
+    // EXCLUSIVE FILTERING: Reset ALL other filters (AI tool, media type, etc.)
+    if (category === 'All') {
+      // Clear all filters - hard reset
+      navigate('/', { replace: false });
+      onFilterChange('All');
+    } else {
+      // Create clean URL with ONLY this category filter
+      navigate(`/?category=${encodeURIComponent(category)}`, { replace: false });
+      onFilterChange(category);
+    }
+
+    // Smooth scroll to results
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
+  };
+
   return (
     <div className="py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -16,7 +38,7 @@ const FilterBar = ({ selectedFilter, onFilterChange }) => {
           {filters.map((filter) => (
             <button
               key={filter.id}
-              onClick={() => onFilterChange(filter.id)}
+              onClick={() => handleCategoryClick(filter.id)}
               className={`px-6 py-3 rounded-full text-sm font-medium transition-all ${
                 selectedFilter === filter.id
                   ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/25 scale-105'
@@ -33,4 +55,5 @@ const FilterBar = ({ selectedFilter, onFilterChange }) => {
 };
 
 export default FilterBar;
+
 

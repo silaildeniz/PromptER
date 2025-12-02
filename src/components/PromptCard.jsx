@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePromptAction } from '../hooks/usePromptAction';
+import { getCardThumbnail, isVideo } from '../lib/utils';
 import toast from 'react-hot-toast';
 import CreditModal from './CreditModal';
 
@@ -15,14 +16,39 @@ const PromptCard = ({ prompt }) => {
 
   // Get badge color based on model
   const getModelBadgeColor = () => {
-    if (prompt.model.includes('Midjourney')) {
+    const modelLower = prompt.model?.toLowerCase() || '';
+    
+    if (modelLower.includes('midjourney')) {
       return 'bg-gradient-to-r from-purple-500 to-pink-500';
-    } else if (prompt.model.includes('DALL-E')) {
+    } else if (modelLower.includes('dall') || modelLower.includes('dalle')) {
       return 'bg-gradient-to-r from-blue-500 to-cyan-500';
-    } else if (prompt.model.includes('GPT')) {
+    } else if (modelLower.includes('gpt') || modelLower.includes('chatgpt')) {
       return 'bg-gradient-to-r from-green-500 to-emerald-500';
+    } else if (modelLower.includes('veo')) {
+      return 'bg-gradient-to-r from-orange-500 to-red-500';
+    } else if (modelLower.includes('sora')) {
+      return 'bg-gradient-to-r from-cyan-500 to-blue-500';
+    } else if (modelLower.includes('leonardo')) {
+      return 'bg-gradient-to-r from-violet-500 to-purple-500';
     }
     return 'bg-gradient-to-r from-purple-500 to-blue-500';
+  };
+
+  // Format model name for display
+  const formatModelName = () => {
+    const modelLower = prompt.model?.toLowerCase() || '';
+    
+    const modelMap = {
+      'midjourney': 'Midjourney',
+      'chatgpt': 'ChatGPT',
+      'veo3': 'Veo3',
+      'sora': 'Sora',
+      'leonardo': 'Leonardo',
+      'dalle': 'DALL-E',
+      'stable-diffusion': 'Stable Diffusion'
+    };
+    
+    return modelMap[modelLower] || prompt.model;
   };
 
   const handleCardClick = () => {
@@ -89,25 +115,40 @@ const PromptCard = ({ prompt }) => {
       onClick={handleCardClick}
       whileHover={{ y: -4 }}
     >
-      {/* Image Section */}
-      <div className="relative h-48 overflow-hidden">
-        <motion.img
-          src={prompt.imageUrl}
-          alt={prompt.title}
-          className="w-full h-full object-cover"
-          animate={{ scale: isHovered ? 1.1 : 1 }}
-          transition={{ duration: 0.4 }}
-        />
+      {/* Image/Video Section */}
+      <div className="relative h-48 overflow-hidden bg-navy-900">
+        {isVideo(prompt.media_type) ? (
+          <video
+            src={prompt.media_url}
+            className="w-full h-full object-cover"
+            muted
+            loop
+            playsInline
+          />
+        ) : (
+          <motion.img
+            src={getCardThumbnail(prompt.media_url)}
+            alt={prompt.title}
+            className="w-full h-full object-cover"
+            animate={{ scale: isHovered ? 1.1 : 1 }}
+            transition={{ duration: 0.4 }}
+            loading="lazy"
+            onError={(e) => {
+              // Fallback to original URL if transformation fails
+              e.target.src = prompt.media_url;
+            }}
+          />
+        )}
 
-        {/* Model Badge - Top Left */}
-        <div className={`absolute top-3 left-3 px-3 py-1.5 ${getModelBadgeColor()} rounded-lg shadow-lg`}>
-          <span className="text-xs font-bold text-white">{prompt.model}</span>
+        {/* Model Badge - Top Left (Glassmorphism) */}
+        <div className="absolute top-3 left-3 bg-black/30 backdrop-blur-md border border-white/20 text-white text-xs font-medium px-3 py-1 rounded-full z-10">
+          <span className="font-semibold">{formatModelName()}</span>
         </div>
 
         {/* Price Tag - Top Right */}
         <div className="absolute top-3 right-3">
           <div className="px-3 py-1.5 bg-navy-900/90 backdrop-blur-sm rounded-lg border border-white/20">
-            <span className="text-xs font-bold text-white">{prompt.price} Credits</span>
+            <span className="text-xs font-bold text-white">{prompt.cost} Credits</span>
           </div>
         </div>
 
@@ -137,14 +178,14 @@ const PromptCard = ({ prompt }) => {
       {/* Content Section */}
       <div className="p-4">
         {/* Title */}
-        <h3 className="text-white font-semibold text-base mb-2 line-clamp-2 group-hover:text-purple-300 transition-colors">
+        <h3 className="text-white font-semibold text-base mb-3 line-clamp-2 group-hover:text-purple-300 transition-colors">
           {prompt.title}
         </h3>
 
-        {/* Author & Sales */}
-        <p className="text-xs text-slate-400 mb-3">
-          {prompt.author} • {prompt.sales} sales
-        </p>
+        {/* Author & Sales - HIDDEN FOR NOW (Keep for future) */}
+        {/* <p className="text-xs text-slate-400 mb-3">
+          {prompt.author || 'PromptER Team'} • {prompt.sales || 0} sales
+        </p> */}
 
         {/* Rating & Category Row */}
         <div className="flex items-center justify-between">
@@ -152,13 +193,13 @@ const PromptCard = ({ prompt }) => {
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
             <span className="text-sm font-medium text-slate-300">
-              {prompt.rating}
+              {prompt.rating?.toFixed(1) || '5.0'}
             </span>
           </div>
 
-          {/* Category Badge */}
+          {/* Category Badge (Capitalized) */}
           <div className="px-2 py-1 bg-navy-900/50 rounded-md border border-white/10">
-            <span className="text-xs text-slate-300">{prompt.category}</span>
+            <span className="text-xs text-slate-300 capitalize">{prompt.category}</span>
           </div>
         </div>
       </div>

@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import PromptDetail from './pages/PromptDetail';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import AdminUpload from './pages/AdminUpload';
 
 function App() {
   const [aiFilter, setAiFilter] = useState({ tool: null, type: null });
@@ -29,6 +31,16 @@ function App() {
             <Route path="/prompt/:id" element={<PromptDetail />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            
+            {/* Protected Admin Routes */}
+            <Route 
+              path="/admin/upload" 
+              element={
+                <ProtectedRoute requiredRole="admin" redirectTo="/">
+                  <AdminUpload />
+                </ProtectedRoute>
+              } 
+            />
           </Routes>
 
           {/* Footer */}

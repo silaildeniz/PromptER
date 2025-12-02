@@ -37,15 +37,42 @@ const Navbar = ({ onFilterChange }) => {
 
   const handleToolClick = (tool, type) => {
     setHoveredTool(null);
-    if (onFilterChange) {
-      onFilterChange({ tool: tool.id, type });
+    
+    // EXCLUSIVE FILTERING: Reset ALL other filters
+    // Create clean URL with ONLY this tool filter
+    const params = new URLSearchParams();
+    params.set('tool', tool.id);
+    if (type) {
+      params.set('type', type.toLowerCase());
     }
+    
+    // Hard navigation - resets category and any other filters
+    navigate(`/?${params.toString()}`, { replace: false });
+    
+    // Update filter state
+    if (onFilterChange) {
+      onFilterChange({ tool: tool.id, type: type?.toLowerCase() });
+    }
+
+    // Smooth scroll to top to show filtered results
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
   };
 
   const handleShowAll = () => {
+    // Clear ALL filters - hard reset
+    navigate('/', { replace: false });
+    
+    // Clear filter state
     if (onFilterChange) {
       onFilterChange({ tool: null, type: null });
     }
+
+    // Smooth scroll to top
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
   };
 
   return (
@@ -70,34 +97,41 @@ const Navbar = ({ onFilterChange }) => {
               All
             </button>
 
-            {/* AI Tool Items */}
+            {/* AI Tool Items with Improved Hover UX */}
             {AI_NAV_ITEMS.map((tool) => (
               <div
                 key={tool.id}
-                className="relative"
+                className="relative group"
                 onMouseEnter={() => setHoveredTool(tool.id)}
                 onMouseLeave={() => setHoveredTool(null)}
                 ref={hoveredTool === tool.id ? toolDropdownRef : null}
               >
-                <button
-                  className="px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-all flex items-center gap-1"
-                >
+                {/* Trigger Button */}
+                <button className="px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-all flex items-center gap-1">
                   {tool.label}
-                  <ChevronDown className="w-3 h-3" />
+                  <ChevronDown className={`w-3 h-3 transition-transform ${hoveredTool === tool.id ? 'rotate-180' : ''}`} />
                 </button>
 
-                {/* Dropdown for Media Types */}
+                {/* Dropdown Menu with Bridge to Prevent Gap */}
                 {hoveredTool === tool.id && (
-                  <div className="absolute top-full left-0 mt-1 w-40 bg-navy-800 border border-white/10 rounded-lg shadow-2xl overflow-hidden z-50">
-                    {tool.types.map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => handleToolClick(tool, type)}
-                        className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-purple-500/20 hover:text-white transition-colors"
-                      >
-                        {type}
-                      </button>
-                    ))}
+                  <div className="absolute left-0 top-full pt-2 z-50">
+                    {/* Invisible Bridge - Creates safe hover area between button and menu */}
+                    <div className="h-2 w-full" />
+                    
+                    {/* Actual Dropdown Menu */}
+                    <div className="bg-navy-800/98 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl min-w-[150px] py-1.5 overflow-hidden">
+                      {tool.types.map((type, index) => (
+                        <button
+                          key={type}
+                          onClick={() => handleToolClick(tool, type)}
+                          className="w-full px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-purple-500/20 hover:text-white transition-all duration-200 flex items-center gap-2 group/item"
+                        >
+                          {/* Visual indicator */}
+                          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                          {type}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

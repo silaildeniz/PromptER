@@ -1,4 +1,5 @@
 // AI Tools Navigation Structure
+// Used in Navbar for filtering prompts by AI model and media type
 export const AI_NAV_ITEMS = [
   { 
     id: 'chatgpt', 
@@ -8,7 +9,7 @@ export const AI_NAV_ITEMS = [
   { 
     id: 'veo3', 
     label: 'Veo3', 
-    types: ['Video'] 
+    types: ['Video', 'Image'] // User specifically requested Image support
   },
   { 
     id: 'midjourney', 
@@ -26,4 +27,5 @@ export const AI_NAV_ITEMS = [
     types: ['Image', 'Video'] 
   },
 ];
+
 

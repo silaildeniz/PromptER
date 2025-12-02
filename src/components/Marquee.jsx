@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { MARQUEE_IMAGES } from '../data/mockData';
+import { getMarqueeImage } from '../lib/utils';
 
 const Marquee = () => {
   // Duplicate images for seamless loop
@@ -31,9 +32,10 @@ const Marquee = () => {
             className="flex-shrink-0 w-72 h-48 rounded-2xl overflow-hidden border border-white/5 hover:border-purple-500/30 transition-all cursor-pointer group"
           >
             <img
-              src={imageUrl}
+              src={getMarqueeImage(imageUrl)}
               alt={`Gallery ${index + 1}`}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              loading="lazy"
             />
           </div>
         ))}

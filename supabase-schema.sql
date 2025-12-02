@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   credits INTEGER DEFAULT 200 NOT NULL,
+  role TEXT DEFAULT 'user' NOT NULL CHECK (role IN ('user', 'admin')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -62,7 +63,33 @@ CREATE POLICY "Anyone can view prompts"
   USING (true);
 
 -- =====================================================
--- 3. TRANSACTIONS TABLE (Purchase History)
+-- 3. PURCHASES TABLE (Permanent Ownership Tracking)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.purchases (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  prompt_id UUID REFERENCES public.prompts(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(user_id, prompt_id) -- Prevent duplicate purchases
+);
+
+-- Enable Row Level Security
+ALTER TABLE public.purchases ENABLE ROW LEVEL SECURITY;
+
+-- Purchases policies
+CREATE POLICY "Users can view own purchases"
+  ON public.purchases FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own purchases"
+  ON public.purchases FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- Index for faster lookups
+CREATE INDEX IF NOT EXISTS purchases_user_prompt_idx ON public.purchases(user_id, prompt_id);
+
+-- =====================================================
+-- 4. TRANSACTIONS TABLE (Purchase History)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.transactions (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -83,7 +110,7 @@ CREATE POLICY "Users can view own transactions"
   USING (auth.uid() = user_id);
 
 -- =====================================================
--- 4. TRIGGER: AUTO-CREATE PROFILE ON USER SIGNUP
+-- 5. TRIGGER: AUTO-CREATE PROFILE ON USER SIGNUP
 -- =====================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -115,7 +142,104 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- =====================================================
--- 5. RPC FUNCTION: DEDUCT CREDITS (Secure Purchase)
+-- 6. RPC FUNCTION: UNLOCK PROMPT (Permanent Ownership)
+-- =====================================================
+CREATE OR REPLACE FUNCTION public.unlock_prompt(
+  prompt_uuid UUID,
+  cost INTEGER
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  current_user_id UUID;
+  current_credits INTEGER;
+  already_owned BOOLEAN;
+BEGIN
+  -- Get current user ID
+  current_user_id := auth.uid();
+  
+  -- Check if user is authenticated
+  IF current_user_id IS NULL THEN
+    RETURN json_build_object(
+      'success', false,
+      'error', 'unauthorized',
+      'message', 'User not authenticated'
+    );
+  END IF;
+
+  -- Check if user already owns this prompt
+  SELECT EXISTS (
+    SELECT 1 FROM public.purchases
+    WHERE user_id = current_user_id AND prompt_id = prompt_uuid
+  ) INTO already_owned;
+
+  IF already_owned THEN
+    -- Already purchased, return success without deducting
+    RETURN json_build_object(
+      'success', true,
+      'already_owned', true,
+      'message', 'Prompt already unlocked'
+    );
+  END IF;
+
+  -- Get current credit balance
+  SELECT credits INTO current_credits
+  FROM public.profiles
+  WHERE id = current_user_id;
+
+  -- Check if user has enough credits
+  IF current_credits < cost THEN
+    RETURN json_build_object(
+      'success', false,
+      'error', 'insufficient_funds',
+      'message', 'Not enough credits',
+      'required', cost,
+      'available', current_credits
+    );
+  END IF;
+
+  -- Deduct credits
+  UPDATE public.profiles
+  SET credits = credits - cost
+  WHERE id = current_user_id;
+
+  -- Record purchase (permanent ownership)
+  INSERT INTO public.purchases (user_id, prompt_id)
+  VALUES (current_user_id, prompt_uuid);
+
+  -- Log transaction
+  INSERT INTO public.transactions (user_id, prompt_id, amount, type, description)
+  VALUES (
+    current_user_id,
+    prompt_uuid,
+    -cost,
+    'debit',
+    'Prompt unlocked'
+  );
+
+  -- Increment sales count
+  UPDATE public.prompts
+  SET sales = sales + 1
+  WHERE id = prompt_uuid;
+
+  -- Get new credit balance
+  SELECT credits INTO current_credits
+  FROM public.profiles
+  WHERE id = current_user_id;
+
+  RETURN json_build_object(
+    'success', true,
+    'credits_remaining', current_credits,
+    'message', 'Prompt unlocked successfully'
+  );
+END;
+$$;
+
+-- =====================================================
+-- 7. RPC FUNCTION: DEDUCT CREDITS (Secure Purchase - Legacy)
 -- =====================================================
 CREATE OR REPLACE FUNCTION public.deduct_credits(
   prompt_id_param UUID,
@@ -192,7 +316,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- =====================================================
--- 6. RPC FUNCTION: ADD CREDITS (Ad Rewards, Purchases)
+-- 8. RPC FUNCTION: ADD CREDITS (Ad Rewards, Purchases)
 -- =====================================================
 CREATE OR REPLACE FUNCTION public.add_credits(
   amount INTEGER,
