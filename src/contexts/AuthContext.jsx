@@ -58,10 +58,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signUp = async (email, password) => {
+  const signUp = async (email, password, username = null) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          username: username || email.split('@')[0], // Fallback to email prefix
+        },
+      },
     });
     return { data, error };
   };

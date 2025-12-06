@@ -10,6 +10,7 @@ import PromptDetail from './pages/PromptDetail';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import AdminUpload from './pages/AdminUpload';
+import Library from './pages/Library';
 
 function App() {
   const [aiFilter, setAiFilter] = useState({ tool: null, type: null });
@@ -21,7 +22,7 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen bg-navy-900">
+        <div className="min-h-screen" style={{ backgroundColor: '#F5E6D3' }}>
           {/* Navbar with AI Filter */}
           <Navbar onFilterChange={handleFilterChange} />
 
@@ -31,6 +32,7 @@ function App() {
             <Route path="/prompt/:id" element={<PromptDetail />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/library" element={<Library />} />
             
             {/* Protected Admin Routes */}
             <Route 

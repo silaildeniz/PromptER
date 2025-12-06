@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Mail, Lock, AlertCircle, Loader, CheckCircle, Sparkles } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Loader, CheckCircle, Sparkles, User } from 'lucide-react';
 
 const Signup = () => {
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -54,9 +55,14 @@ const Signup = () => {
       return;
     }
 
+    if (username && username.length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
+
     setLoading(true);
 
-    const { data, error: signUpError } = await signUp(email, password);
+    const { data, error: signUpError } = await signUp(email, password, username);
 
     if (signUpError) {
       setError(signUpError.message);
@@ -69,6 +75,7 @@ const Signup = () => {
         setLoading(false);
         // Clear form
         setEmail('');
+        setUsername('');
         setPassword('');
         setConfirmPassword('');
         // Redirect after showing success message
@@ -195,6 +202,24 @@ const Signup = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Username */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Username
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 bg-navy-900/50 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  placeholder="johndoe"
+                />
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Optional - will be generated from email if empty</p>
+            </div>
+
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">

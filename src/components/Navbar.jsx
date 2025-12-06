@@ -1,27 +1,80 @@
-import { Sparkles, User, LogOut, Plus, ChevronDown } from 'lucide-react';
+import { Sparkles, User, LogOut, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useState, useRef, useEffect } from 'react';
 import CreditModal from './CreditModal';
-import { AI_NAV_ITEMS } from '../data/aiNavigation';
+
+// CONSTANTS: AI Models and Styles (Source of Truth)
+const AI_MODELS_LIST = [
+  "ChatGPT Image", "Claude", "Dall-E", "Deepseek", "Flux", "Gemini",
+  "Gemini Image", "ChatGPT", "Grok", "Grok Image", "Hailou AI", "Hunyuan",
+  "Ideogram", "Imagen", "Kling AI", "Leonardo AI", "Llama", "Midjourney",
+  "Qwen Image", "Recraft", "Seedance", "Seedream", "Sora", "Stable Diffusion",
+  "Veo", "Wan", "Midjourney Video"
+];
+
+const STYLE_TAGS = [
+  "3D", "Abstract", "Accesory", "Animal", "Anime", "Art", "Avatar", "Architecture",
+  "Cartoon", "Celebrity", "Clothing", "Clip Art", "Cute", "Cyberpunk", "Drawing",
+  "Drink", "Fantasy", "Fashion", "Food", "Future", "Gaming", "Glass", "Graphic Design",
+  "Holiday", "Icon", "Ink", "Interior Illustration", "Jewelry", "Landscape", "Logo",
+  "Mockup", "Monogram", "Monster", "Nature", "Pattern", "Painting", "People",
+  "Photographic", "Pixel Art", "Poster", "Product", "Psychedelic", "Retro", "Scary",
+  "Space", "Steampunk", "Statue", "Sticker", "Unique Style", "Synthwave", "Texture",
+  "Vehicle", "Wallpaper"
+];
+
+// ART DATA (Hierarchical Structure)
+const ART_PARENTS = ["Anime", "Cartoon", "Painting", "Illustration"];
+const ART_HIERARCHY = {
+  "Anime": ["All", "Fantasy", "Landscapes"],
+  "Cartoon": ["Animal", "Food", "People"],
+  "Painting": ["Animals", "Nature", "People", "Landscapes"],
+  "Illustration": ["Animals", "Food and Drink", "Nature"]
+};
+
+// LOGO DATA
+const LOGO_PARENTS = ["Logo Designs", "Icon Designs"];
+const LOGO_DATA = {
+  "Logo Designs": ["3D", "Animal", "Business Startup", "Cartoon", "Cute", "Food", "Lettered", "Hand-Drawn", "Minimalist", "Modern", "Painted", "Styled"],
+  "Icon Designs": ["3D", "Animal", "Clip", "Cute", "Flat Graphic", "Pixel Art", "UI", "Video Games"]
+};
+
+// GRAPHICS DATA
+const GRAPHIC_PARENTS = ["Product", "Productivity", "Writing", "Games"];
+const GRAPHIC_DATA = {
+  "Product": ["Book Cover", "Cards", "Coloring Books", "Laser", "Posters", "Stickers", "Tshirt Print", "Tattoos", "UX/UI"],
+  "Productivity": ["Coaching", "Health Fitness", "Food Diet", "Planing", "Meditation", "Studying"],
+  "Writing": ["Email", "Translation", "Music", "Coding"],
+  "Games": ["Games General"]
+};
 
 const Navbar = ({ onFilterChange }) => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showCreditModal, setShowCreditModal] = useState(false);
-  const [hoveredTool, setHoveredTool] = useState(null);
+  const [hoveredMenu, setHoveredMenu] = useState(null); // Tracks which menu is open
+  
+  // Active parent states for each split-view menu
+  const [activeModel, setActiveModel] = useState('ChatGPT Image');
+  const [activeArtParent, setActiveArtParent] = useState('Anime');
+  const [activeLogoParent, setActiveLogoParent] = useState('Logo Designs');
+  const [activeGraphicParent, setActiveGraphicParent] = useState('Product');
+  
   const dropdownRef = useRef(null);
-  const toolDropdownRef = useRef(null);
+  const timeoutRef = useRef(null); // Grace period timeout
+  
+  // Helper function to slugify text (e.g., "ChatGPT Image" -> "chatgpt-image")
+  const slugify = (text) => {
+    return text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowDropdown(false);
-      }
-      if (toolDropdownRef.current && !toolDropdownRef.current.contains(event.target)) {
-        setHoveredTool(null);
       }
     };
 
@@ -35,107 +88,319 @@ const Navbar = ({ onFilterChange }) => {
     navigate('/');
   };
 
-  const handleToolClick = (tool, type) => {
-    setHoveredTool(null);
+  // GRACE PERIOD HANDLERS (Gap-Proof Hover Logic)
+  const handleMenuEnter = (menuName) => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    // Set active menu immediately
+    setHoveredMenu(menuName);
     
-    // EXCLUSIVE FILTERING: Reset ALL other filters
-    // Create clean URL with ONLY this tool filter
+    // Reset active states based on menu
+    if (menuName === 'MODELS') {
+      setActiveModel(AI_MODELS_LIST[0]);
+    } else if (menuName === 'ART') {
+      setActiveArtParent(ART_PARENTS[0]);
+    } else if (menuName === 'LOGO') {
+      setActiveLogoParent(LOGO_PARENTS[0]);
+    } else if (menuName === 'GRAPHICS') {
+      setActiveGraphicParent(GRAPHIC_PARENTS[0]);
+    }
+  };
+
+  const handleMenuLeave = () => {
+    // Don't close immediately - set a grace period
+    timeoutRef.current = setTimeout(() => {
+      setHoveredMenu(null);
+    }, 200); // 200ms grace period
+  };
+
+  // Unified navigation helper for dropdown items
+  const handleNavigation = (key, value, subKey = null, subValue = null) => {
     const params = new URLSearchParams();
-    params.set('tool', tool.id);
-    if (type) {
-      params.set('type', type.toLowerCase());
-    }
-    
-    // Hard navigation - resets category and any other filters
+    if (key && value) params.set(key, slugify(value));
+    if (subKey && subValue) params.set(subKey, slugify(subValue));
     navigate(`/?${params.toString()}`, { replace: false });
-    
-    // Update filter state
     if (onFilterChange) {
-      onFilterChange({ tool: tool.id, type: type?.toLowerCase() });
+      onFilterChange({
+        [key]: slugify(value),
+        ...(subKey && subValue ? { [subKey]: slugify(subValue) } : {})
+      });
     }
-
-    // Smooth scroll to top to show filtered results
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 100);
+    setHoveredMenu(null);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
   };
 
-  const handleShowAll = () => {
-    // Clear ALL filters - hard reset
-    navigate('/', { replace: false });
-    
-    // Clear filter state
-    if (onFilterChange) {
-      onFilterChange({ tool: null, type: null });
-    }
-
-    // Smooth scroll to top
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 100);
-  };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-navy-900/50 border-b border-white/5">
+    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-white/80 border-b border-nude-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 cursor-pointer">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-white">PromptER</span>
+            <span className="text-xl font-bold text-purple-900">PromptER</span>
           </Link>
 
-          {/* AI Tools Navigation - Center */}
+          {/* CENTERED FIXED MEGA MENUS - Center */}
           <div className="hidden md:flex flex-1 items-center justify-center gap-1 mx-8">
-            {/* Show All Button */}
-            <button
-              onClick={handleShowAll}
-              className="px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+
+            {/* MODELS - Split-View Mega Menu */}
+            <div
+              className="relative group"
+              onMouseEnter={() => handleMenuEnter('MODELS')}
+              onMouseLeave={handleMenuLeave}
             >
-              All
-            </button>
+              {/* MODELS Trigger Button */}
+              <button className="px-4 py-2 text-sm text-purple-900 hover:text-purple-950 bg-white/60 hover:bg-white/80 border border-purple-200 hover:border-purple-300 rounded-lg transition-all flex items-center gap-1 font-semibold">
+                MODELS
+                <ChevronDown className={`w-3 h-3 transition-transform ${hoveredMenu === 'MODELS' ? 'rotate-180' : ''}`} />
+              </button>
 
-            {/* AI Tool Items with Improved Hover UX */}
-            {AI_NAV_ITEMS.map((tool) => (
-              <div
-                key={tool.id}
-                className="relative group"
-                onMouseEnter={() => setHoveredTool(tool.id)}
-                onMouseLeave={() => setHoveredTool(null)}
-                ref={hoveredTool === tool.id ? toolDropdownRef : null}
-              >
-                {/* Trigger Button */}
-                <button className="px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-all flex items-center gap-1">
-                  {tool.label}
-                  <ChevronDown className={`w-3 h-3 transition-transform ${hoveredTool === tool.id ? 'rotate-180' : ''}`} />
-                </button>
-
-                {/* Dropdown Menu with Bridge to Prevent Gap */}
-                {hoveredTool === tool.id && (
-                  <div className="absolute left-0 top-full pt-2 z-50">
-                    {/* Invisible Bridge - Creates safe hover area between button and menu */}
-                    <div className="h-2 w-full" />
+              {/* Split-View Mega Menu (Centered Fixed) */}
+              {hoveredMenu === 'MODELS' && (
+                <div 
+                  className="fixed left-1/2 -translate-x-1/2 top-[65px] z-[9999]"
+                  onMouseEnter={() => handleMenuEnter('MODELS')}
+                  onMouseLeave={handleMenuLeave}
+                >
+                  {/* Large Container: 900px × 600px */}
+                  <div className="bg-[#F5E6D3] border border-nude-300 shadow-2xl rounded-xl w-[900px] h-[600px] flex overflow-hidden">
                     
-                    {/* Actual Dropdown Menu */}
-                    <div className="bg-navy-800/98 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl min-w-[150px] py-1.5 overflow-hidden">
-                      {tool.types.map((type, index) => (
+                    {/* LEFT COLUMN: AI Models (1/3 width) */}
+                    <div className="w-1/3 border-r border-gray-800 overflow-y-auto custom-scrollbar">
+                      {AI_MODELS_LIST.map((model) => (
                         <button
-                          key={type}
-                          onClick={() => handleToolClick(tool, type)}
-                          className="w-full px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-purple-500/20 hover:text-white transition-all duration-200 flex items-center gap-2 group/item"
+                          key={model}
+                          onMouseEnter={() => setActiveModel(model)}
+                          onClick={() => handleNavigation('model', model)}
+                          className={`w-full text-left px-4 py-3 text-sm transition-all border-l-4 ${
+                            activeModel === model
+                              ? 'bg-purple-500/10 text-purple-400 border-purple-500'
+                              : 'bg-transparent text-purple-900 hover:text-purple-950 hover:bg-purple-100/70 border-transparent'
+                          }`}
                         >
-                          {/* Visual indicator */}
-                          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 opacity-0 group-hover/item:opacity-100 transition-opacity" />
-                          {type}
+                          {model}
                         </button>
                       ))}
                     </div>
+
+                    {/* RIGHT COLUMN: Styles (2/3 width) */}
+                    <div className="w-2/3 flex flex-col">
+                      {/* Header */}
+                      <div className="px-6 py-4 border-b border-gray-800">
+                        <h3 className="text-nude-900 font-semibold text-sm uppercase tracking-wide">
+                          Select Style for: <span className="text-purple-400">{activeModel}</span>
+                        </h3>
+                      </div>
+
+                      {/* Styles Grid */}
+                      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                        <div className="grid grid-cols-3 gap-3">
+                          {STYLE_TAGS.map((style) => (
+                            <button
+                              key={style}
+                              onClick={() => handleNavigation('model', activeModel, 'category', style)}
+                              className="text-left px-4 py-3 text-sm text-purple-700 hover:text-purple-900 hover:bg-purple-100/50 rounded-lg transition-all border border-transparent hover:border-purple-500/30"
+                            >
+                              {style}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
-            ))}
+                </div>
+              )}
+            </div>
+
+            {/* ART - Split-View Mega Menu */}
+            <div
+              className="relative group"
+              onMouseEnter={() => handleMenuEnter('ART')}
+              onMouseLeave={handleMenuLeave}
+            >
+              <button className="px-4 py-2 text-sm text-purple-900 hover:text-purple-950 bg-white/60 hover:bg-white/80 border border-purple-200 hover:border-purple-300 rounded-lg transition-all flex items-center gap-1 font-semibold">
+                ART
+                <ChevronDown className={`w-3 h-3 transition-transform ${hoveredMenu === 'ART' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {hoveredMenu === 'ART' && (
+                <div 
+                  className="fixed left-1/2 -translate-x-1/2 top-[65px] z-[9999]"
+                  onMouseEnter={() => handleMenuEnter('ART')}
+                  onMouseLeave={handleMenuLeave}
+                >
+                  <div className="bg-[#F5E6D3] border border-nude-300 shadow-2xl rounded-xl w-[900px] h-[600px] flex overflow-hidden">
+                    {/* LEFT: Art Categories */}
+                    <div className="w-1/3 border-r border-gray-800 overflow-y-auto custom-scrollbar">
+                      {ART_PARENTS.map((artParent) => (
+                        <button
+                          key={artParent}
+                          onMouseEnter={() => setActiveArtParent(artParent)}
+                          onClick={() => handleNavigation('category', artParent)}
+                          className={`w-full text-left px-4 py-3 text-sm transition-all border-l-4 ${
+                            activeArtParent === artParent
+                              ? 'bg-purple-500/10 text-purple-400 border-purple-500'
+                              : 'bg-transparent text-purple-900 hover:text-purple-950 hover:bg-purple-100/70 border-transparent'
+                          }`}
+                        >
+                          {artParent}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* RIGHT: Styles */}
+                    <div className="w-2/3 flex flex-col">
+                      <div className="px-6 py-4 border-b border-gray-800">
+                        <h3 className="text-nude-900 font-semibold text-sm uppercase tracking-wide">
+                          Select Style for: <span className="text-purple-400">{activeArtParent}</span>
+                        </h3>
+                      </div>
+                      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                        <div className="grid grid-cols-3 gap-3">
+                          {ART_HIERARCHY[activeArtParent]?.map((subCategory) => (
+                            <button
+                              key={subCategory}
+                              onClick={() => handleNavigation('category', subCategory)}
+                              className="text-left px-4 py-3 text-sm text-purple-700 hover:text-purple-900 hover:bg-purple-100/50 rounded-lg transition-all border border-transparent hover:border-purple-500/30"
+                            >
+                              {subCategory}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* LOGO - Split-View Mega Menu */}
+            <div
+              className="relative group"
+              onMouseEnter={() => handleMenuEnter('LOGO')}
+              onMouseLeave={handleMenuLeave}
+            >
+              <button className="px-4 py-2 text-sm text-purple-900 hover:text-purple-950 bg-white/60 hover:bg-white/80 border border-purple-200 hover:border-purple-300 rounded-lg transition-all flex items-center gap-1 font-semibold">
+                LOGO
+                <ChevronDown className={`w-3 h-3 transition-transform ${hoveredMenu === 'LOGO' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {hoveredMenu === 'LOGO' && (
+                <div 
+                  className="fixed left-1/2 -translate-x-1/2 top-[65px] z-[9999]"
+                  onMouseEnter={() => handleMenuEnter('LOGO')}
+                  onMouseLeave={handleMenuLeave}
+                >
+                  <div className="bg-[#F5E6D3] border border-nude-300 shadow-2xl rounded-xl w-[900px] h-[600px] flex overflow-hidden">
+                    {/* LEFT: Logo Types */}
+                    <div className="w-1/3 border-r border-gray-800 overflow-y-auto custom-scrollbar">
+                      {LOGO_PARENTS.map((logoParent) => (
+                        <button
+                          key={logoParent}
+                          onMouseEnter={() => setActiveLogoParent(logoParent)}
+                          className={`w-full text-left px-4 py-3 text-sm transition-all border-l-4 ${
+                            activeLogoParent === logoParent
+                              ? 'bg-purple-500/10 text-purple-400 border-purple-500'
+                              : 'bg-transparent text-purple-900 hover:text-purple-950 hover:bg-purple-100/70 border-transparent'
+                          }`}
+                        >
+                          {logoParent}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* RIGHT: Logo Options */}
+                    <div className="w-2/3 flex flex-col">
+                      <div className="px-6 py-4 border-b border-gray-800">
+                        <h3 className="text-nude-900 font-semibold text-sm uppercase tracking-wide">
+                          Select Type: <span className="text-purple-400">{activeLogoParent}</span>
+                        </h3>
+                      </div>
+                      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                        <div className="grid grid-cols-3 gap-3">
+                          {LOGO_DATA[activeLogoParent]?.map((item) => (
+                            <button
+                              key={item}
+                              onClick={() => handleNavigation('category', item)}
+                              className="text-left px-4 py-3 text-sm text-purple-700 hover:text-purple-900 hover:bg-purple-100/50 rounded-lg transition-all border border-transparent hover:border-purple-500/30"
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* GRAPHICS - Split-View Mega Menu */}
+            <div
+              className="relative group"
+              onMouseEnter={() => handleMenuEnter('GRAPHICS')}
+              onMouseLeave={handleMenuLeave}
+            >
+              <button className="px-4 py-2 text-sm text-purple-900 hover:text-purple-950 bg-white/60 hover:bg-white/80 border border-purple-200 hover:border-purple-300 rounded-lg transition-all flex items-center gap-1 font-semibold">
+                GRAPHICS
+                <ChevronDown className={`w-3 h-3 transition-transform ${hoveredMenu === 'GRAPHICS' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {hoveredMenu === 'GRAPHICS' && (
+                <div 
+                  className="fixed left-1/2 -translate-x-1/2 top-[65px] z-[9999]"
+                  onMouseEnter={() => handleMenuEnter('GRAPHICS')}
+                  onMouseLeave={handleMenuLeave}
+                >
+                  <div className="bg-[#F5E6D3] border border-nude-300 shadow-2xl rounded-xl w-[900px] h-[600px] flex overflow-hidden">
+                    {/* LEFT: Graphic Categories */}
+                    <div className="w-1/3 border-r border-gray-800 overflow-y-auto custom-scrollbar">
+                      {GRAPHIC_PARENTS.map((graphicParent) => (
+                        <button
+                          key={graphicParent}
+                          onMouseEnter={() => setActiveGraphicParent(graphicParent)}
+                          className={`w-full text-left px-4 py-3 text-sm transition-all border-l-4 ${
+                            activeGraphicParent === graphicParent
+                              ? 'bg-purple-500/10 text-purple-400 border-purple-500'
+                              : 'bg-transparent text-purple-900 hover:text-purple-950 hover:bg-purple-100/70 border-transparent'
+                          }`}
+                        >
+                          {graphicParent}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* RIGHT: Graphic Options */}
+                    <div className="w-2/3 flex flex-col">
+                      <div className="px-6 py-4 border-b border-gray-800">
+                        <h3 className="text-nude-900 font-semibold text-sm uppercase tracking-wide">
+                          Select Type: <span className="text-purple-400">{activeGraphicParent}</span>
+                        </h3>
+                      </div>
+                      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                        <div className="grid grid-cols-3 gap-3">
+                          {GRAPHIC_DATA[activeGraphicParent]?.map((item) => (
+                            <button
+                              key={item}
+                              onClick={() => handleNavigation('category', item)}
+                              className="text-left px-4 py-3 text-sm text-purple-700 hover:text-purple-900 hover:bg-purple-100/50 rounded-lg transition-all border border-transparent hover:border-purple-500/30"
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right Section */}
@@ -167,18 +432,52 @@ const Navbar = ({ onFilterChange }) => {
 
                   {/* Dropdown Menu */}
                   {showDropdown && (
-                    <div className="absolute right-0 mt-2 w-56 bg-navy-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden">
-                      <div className="p-4 border-b border-white/10">
-                        <p className="text-white font-medium truncate">{user.email}</p>
-                        <p className="text-slate-400 text-sm mt-1">{profile?.credits || 0} Credits</p>
+                    <div className="absolute right-0 mt-2 w-64 bg-navy-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+                      {/* User Header */}
+                      <div className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-900/50 to-navy-800">
+                        <p className="text-white font-bold text-lg truncate">
+                          {profile?.username || user.user_metadata?.username || user.email?.split('@')[0]}
+                        </p>
+                        <p className="text-slate-400 text-sm truncate">{user.email}</p>
+                        <p className="text-purple-400 text-sm mt-1 font-medium">{profile?.credits || 0} Credits</p>
                       </div>
-                      <button
-                        onClick={handleSignOut}
-                        className="w-full px-4 py-3 flex items-center gap-3 text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Sign Out
-                      </button>
+
+                      {/* Menu Items */}
+                      <div className="py-2">
+                        {/* My Library */}
+                        <Link
+                          to="/library"
+                          onClick={() => setShowDropdown(false)}
+                          className="w-full px-4 py-3 flex items-center gap-3 text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
+                        >
+                          <span className="text-lg">🔓</span>
+                          My Library
+                        </Link>
+
+                        {/* Admin Panel - Conditional */}
+                        {profile?.role === 'admin' && (
+                          <Link
+                            to="/admin/upload"
+                            onClick={() => setShowDropdown(false)}
+                            className="w-full px-4 py-3 flex items-center gap-3 text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
+                          >
+                            <span className="text-lg">⚡</span>
+                            Admin Panel
+                          </Link>
+                        )}
+
+                        {/* Divider */}
+                        <div className="my-2 border-t border-white/10" />
+
+                        {/* Sign Out */}
+                        <button
+                          onClick={handleSignOut}
+                          className="w-full px-4 py-3 flex items-center gap-3 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Sign Out
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -188,7 +487,7 @@ const Navbar = ({ onFilterChange }) => {
                 {/* Sign In Button */}
                 <Link
                   to="/login"
-                  className="hidden sm:block px-4 py-2 text-slate-300 hover:text-white transition-colors"
+                  className="hidden sm:block px-4 py-2 text-purple-700 hover:text-purple-900 transition-colors"
                 >
                   Sign In
                 </Link>
@@ -196,7 +495,7 @@ const Navbar = ({ onFilterChange }) => {
                 {/* Sign Up Button */}
                 <Link
                   to="/signup"
-                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-lg text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-purple-500/25"
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-lg text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-purple-600/25"
                 >
                   Sign Up
                 </Link>

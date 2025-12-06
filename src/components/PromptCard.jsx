@@ -1,9 +1,10 @@
 import { Star, Copy, Check, Gift } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { usePromptAction } from '../hooks/usePromptAction';
 import { getCardThumbnail, isVideo } from '../lib/utils';
+import { formatDisplayName } from '../lib/formatters'; // Centralized formatter
 import toast from 'react-hot-toast';
 import CreditModal from './CreditModal';
 
@@ -11,7 +12,6 @@ const PromptCard = ({ prompt }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showCreditModal, setShowCreditModal] = useState(false);
-  const navigate = useNavigate();
   const { copyPrompt, loading } = usePromptAction();
 
   // Get badge color based on model
@@ -34,28 +34,8 @@ const PromptCard = ({ prompt }) => {
     return 'bg-gradient-to-r from-purple-500 to-blue-500';
   };
 
-  // Format model name for display
-  const formatModelName = () => {
-    const modelLower = prompt.model?.toLowerCase() || '';
-    
-    const modelMap = {
-      'midjourney': 'Midjourney',
-      'chatgpt': 'ChatGPT',
-      'veo3': 'Veo3',
-      'sora': 'Sora',
-      'leonardo': 'Leonardo',
-      'dalle': 'DALL-E',
-      'stable-diffusion': 'Stable Diffusion'
-    };
-    
-    return modelMap[modelLower] || prompt.model;
-  };
-
-  const handleCardClick = () => {
-    navigate(`/prompt/${prompt.id}`);
-  };
-
   const handleCopy = async (e) => {
+    e.preventDefault();
     e.stopPropagation();
     
     const result = await copyPrompt(prompt);
@@ -66,7 +46,7 @@ const PromptCard = ({ prompt }) => {
         duration: 3000,
         style: {
           background: '#131825',
-          color: '#fff',
+          color: '#ffff',
           border: '1px solid rgba(255,255,255,0.1)',
         },
       });
@@ -108,15 +88,15 @@ const PromptCard = ({ prompt }) => {
   };
 
   return (
-    <motion.div
-      className="group relative bg-navy-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-white/5 hover:border-purple-500/30 transition-all duration-300 cursor-pointer"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onClick={handleCardClick}
-      whileHover={{ y: -4 }}
-    >
+    <Link to={`/prompt/${prompt.id}`} className="block w-full h-full">
+      <motion.div
+        className="group relative bg-gradient-to-br from-[#6d28d9] to-[#e9d5ff] backdrop-blur-sm rounded-xl overflow-hidden border border-purple-300/50 hover:border-purple-200/70 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-2xl"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        whileHover={{ y: -4 }}
+      >
       {/* Image/Video Section */}
-      <div className="relative h-48 overflow-hidden bg-navy-900">
+      <div className="relative h-48 overflow-hidden bg-transparent">
         {isVideo(prompt.media_type) ? (
           <video
             src={prompt.media_url}
@@ -140,25 +120,25 @@ const PromptCard = ({ prompt }) => {
           />
         )}
 
-        {/* Model Badge - Top Left (Glassmorphism) */}
-        <div className="absolute top-3 left-3 bg-black/30 backdrop-blur-md border border-white/20 text-white text-xs font-medium px-3 py-1 rounded-full z-10">
-          <span className="font-semibold">{formatModelName()}</span>
+        {/* Model Badge - Top Left (BEIGE) */}
+        <div className="absolute top-3 left-3 bg-[#F3E5AB] border border-amber-300 text-purple-900 text-xs font-bold px-3 py-1 rounded-full z-10">
+          <span className="font-bold">{formatDisplayName(prompt.model)}</span>
         </div>
 
-        {/* Price Tag - Top Right */}
-        <div className="absolute top-3 right-3">
-          <div className="px-3 py-1.5 bg-navy-900/90 backdrop-blur-sm rounded-lg border border-white/20">
-            <span className="text-xs font-bold text-white">{prompt.cost} Credits</span>
+        {/* Price Tag - Bottom Right (BEIGE) */}
+        <div className="absolute bottom-3 right-3">
+          <div className="px-3 py-1.5 bg-[#F3E5AB] rounded-full border border-amber-300">
+            <span className="text-xs font-bold text-purple-900">{prompt.cost} Cr</span>
           </div>
         </div>
 
-        {/* Copy Button - Bottom Right (shows on hover) */}
+        {/* Copy Button - TOP RIGHT (shows on hover) - Glassmorphism */}
         {isHovered && (
           <motion.button
-            className={`absolute bottom-3 right-3 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-colors group/btn ${
+            className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center shadow-xl transition-all z-20 ${
               copied 
-                ? 'bg-green-500' 
-                : 'bg-white hover:bg-purple-500'
+                ? 'bg-green-500/90 backdrop-blur-md border border-green-400' 
+                : 'bg-white/20 backdrop-blur-md border border-white/50 hover:bg-white/30'
             }`}
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -167,18 +147,18 @@ const PromptCard = ({ prompt }) => {
             disabled={loading}
           >
             {copied ? (
-              <Check className="w-4 h-4 text-white" />
+              <Check className="w-5 h-5 text-white" />
             ) : (
-              <Copy className="w-4 h-4 text-navy-900 group-hover/btn:text-white" />
+              <Copy className="w-5 h-5 text-white" />
             )}
           </motion.button>
         )}
       </div>
 
       {/* Content Section */}
-      <div className="p-4">
+      <div className="p-4 bg-white/10 backdrop-blur-md">
         {/* Title */}
-        <h3 className="text-white font-semibold text-base mb-3 line-clamp-2 group-hover:text-purple-300 transition-colors">
+        <h3 className="text-[#F5E0DC] font-semibold text-base mb-3 line-clamp-2 group-hover:text-[#f1c2cf] transition-colors">
           {prompt.title}
         </h3>
 
@@ -187,21 +167,21 @@ const PromptCard = ({ prompt }) => {
           {prompt.author || 'PromptER Team'} • {prompt.sales || 0} sales
         </p> */}
 
-        {/* Rating & Category Row */}
-        <div className="flex items-center justify-between">
-          {/* Rating */}
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            <span className="text-sm font-medium text-slate-300">
-              {prompt.rating?.toFixed(1) || '5.0'}
-            </span>
-          </div>
+          {/* Rating & Category Row */}
+          <div className="flex items-center justify-between">
+            {/* Rating */}
+            <div className="flex items-center gap-1">
+              <Star className="w-4 h-4 fill-purple-500 text-purple-500" />
+              <span className="text-sm font-medium text-purple-800">
+                {prompt.rating?.toFixed(1) || '5.0'}
+              </span>
+            </div>
 
-          {/* Category Badge (Capitalized) */}
-          <div className="px-2 py-1 bg-navy-900/50 rounded-md border border-white/10">
-            <span className="text-xs text-slate-300 capitalize">{prompt.category}</span>
+            {/* Category Badge (Capitalized) */}
+            <div className="px-2 py-1 bg-purple-100 rounded-md border border-purple-300">
+              <span className="text-xs text-purple-800">{formatDisplayName(prompt.category)}</span>
+            </div>
           </div>
-        </div>
       </div>
 
       {/* Credit Modal */}
@@ -209,7 +189,8 @@ const PromptCard = ({ prompt }) => {
         isOpen={showCreditModal} 
         onClose={() => setShowCreditModal(false)} 
       />
-    </motion.div>
+      </motion.div>
+    </Link>
   );
 };
 
