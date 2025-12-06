@@ -1,6 +1,6 @@
 import { Search } from 'lucide-react';
 
-const Hero = () => {
+const Hero = ({ searchValue = '', onSearchChange, onSearchSubmit }) => {
   return (
     <div className="relative pt-24 pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
       {/* Background Gradient Blob */}
@@ -20,19 +20,24 @@ const Hero = () => {
           No trial and error—just copy and use.
         </p>
 
-        {/* Search Bar (Replaces CTA Button) */}
+        {/* Search Bar */}
         <div className="max-w-2xl mx-auto">
-          <div className="relative">
+          <form onSubmit={onSearchSubmit} className="relative">
             <input
               type="text"
+              value={searchValue}
+              onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search for prompts, styles, or AI tools..."
               className="w-full pl-6 pr-32 py-4 bg-white/90 backdrop-blur-sm border border-purple-300 rounded-2xl text-purple-900 placeholder-purple-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-400/20 transition-all shadow-xl"
             />
-            <button className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-xl text-white font-medium flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-purple-600/25">
+            <button 
+              type="submit"
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-xl text-white font-medium flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-purple-600/25"
+            >
               <Search className="w-4 h-4" />
               Search
             </button>
-          </div>
+          </form>
         </div>
       </div>
     </div>
@@ -40,4 +45,3 @@ const Hero = () => {
 };
 
 export default Hero;
-

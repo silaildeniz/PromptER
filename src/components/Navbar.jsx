@@ -425,33 +425,41 @@ const Navbar = ({ onFilterChange }) => {
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setShowDropdown(!showDropdown)}
-                    className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+                    className="flex items-center gap-2 px-2 py-1 rounded-full hover:bg-purple-100/50 transition-colors cursor-pointer"
                   >
-                    <User className="w-5 h-5 text-white" />
+                    {/* Username Text */}
+                    <span className="hidden sm:block text-sm font-medium text-purple-900 max-w-[120px] truncate">
+                      {profile?.username || user.user_metadata?.username || user.email?.split('@')[0]}
+                    </span>
+                    {/* Avatar */}
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center hover:scale-105 transition-transform shadow-md">
+                      <User className="w-5 h-5 text-white" />
+                    </div>
                   </button>
 
                   {/* Dropdown Menu */}
                   {showDropdown && (
-                    <div className="absolute right-0 mt-2 w-64 bg-navy-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
-                      {/* User Header */}
-                      <div className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-900/50 to-navy-800">
-                        <p className="text-white font-bold text-lg truncate">
-                          {profile?.username || user.user_metadata?.username || user.email?.split('@')[0]}
-                        </p>
-                        <p className="text-slate-400 text-sm truncate">{user.email}</p>
-                        <p className="text-purple-400 text-sm mt-1 font-medium">{profile?.credits || 0} Credits</p>
-                      </div>
-
+                    <div className="absolute right-0 mt-2 w-56 bg-[#F5E6D3] border border-purple-200 rounded-xl shadow-2xl overflow-hidden z-50">
                       {/* Menu Items */}
                       <div className="py-2">
                         {/* My Library */}
                         <Link
                           to="/library"
                           onClick={() => setShowDropdown(false)}
-                          className="w-full px-4 py-3 flex items-center gap-3 text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
+                          className="w-full px-4 py-3 flex items-center gap-3 text-purple-800 hover:bg-purple-100 hover:text-purple-900 transition-colors"
                         >
-                          <span className="text-lg">🔓</span>
+                          <span className="text-lg"></span>
                           My Library
+                        </Link>
+
+                        {/* Settings */}
+                        <Link
+                          to="/settings"
+                          onClick={() => setShowDropdown(false)}
+                          className="w-full px-4 py-3 flex items-center gap-3 text-purple-800 hover:bg-purple-100 hover:text-purple-900 transition-colors"
+                        >
+                          <span className="text-lg"></span>
+                          Settings
                         </Link>
 
                         {/* Admin Panel - Conditional */}
@@ -459,20 +467,20 @@ const Navbar = ({ onFilterChange }) => {
                           <Link
                             to="/admin/upload"
                             onClick={() => setShowDropdown(false)}
-                            className="w-full px-4 py-3 flex items-center gap-3 text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
+                            className="w-full px-4 py-3 flex items-center gap-3 text-purple-800 hover:bg-purple-100 hover:text-purple-900 transition-colors"
                           >
-                            <span className="text-lg">⚡</span>
+                            <span className="text-lg"></span>
                             Admin Panel
                           </Link>
                         )}
 
                         {/* Divider */}
-                        <div className="my-2 border-t border-white/10" />
+                        <div className="my-2 border-t border-purple-200" />
 
                         {/* Sign Out */}
                         <button
                           onClick={handleSignOut}
-                          className="w-full px-4 py-3 flex items-center gap-3 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                          className="w-full px-4 py-3 flex items-center gap-3 text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
                         >
                           <LogOut className="w-4 h-4" />
                           Sign Out

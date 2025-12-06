@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { formatDisplayName } from '../lib/formatters'; // Import centralized formatter
 import Hero from '../components/Hero';
@@ -9,6 +9,7 @@ import { Loader } from 'lucide-react';
 
 const Home = ({ aiFilter }) => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [prompts, setPrompts] = useState([]);
   const [midjourneyPrompts, setMidjourneyPrompts] = useState([]);
@@ -28,10 +29,32 @@ const Home = ({ aiFilter }) => {
   const urlModel = searchParams.get('model');   // Navbar sends 'model'
   const urlType = searchParams.get('type');
   const urlCategory = searchParams.get('category');
+  const searchTerm = searchParams.get('q') || ''; // Get search from URL
 
-  const localSearch = (searchParams.get('q') || '').trim();
+  // Local search state (synced with URL)
+  const [localSearch, setLocalSearch] = useState(searchTerm);
   const selectedModel = urlModel || '';
   const selectedCategory = urlCategory || '';
+
+  // Sync localSearch with URL on mount/change
+  useEffect(() => {
+    setLocalSearch(searchTerm);
+  }, [searchTerm]);
+
+  // Handle Search Submit
+  const handleSearch = (e) => {
+    e.preventDefault();
+    
+    const params = new URLSearchParams(searchParams);
+    
+    if (localSearch.trim()) {
+      params.set('q', localSearch.trim());
+    } else {
+      params.delete('q');
+    }
+    
+    navigate(`/?${params.toString()}`);
+  };
 
   // Sync selectedFilter with URL (for visual state)
   useEffect(() => {
@@ -186,10 +209,14 @@ const Home = ({ aiFilter }) => {
       ? (promptCategory === urlCat || promptCategory === urlCat.replace(/-/g, ' ')) 
       : true;
 
-    // Search: flexible
-    const matchSearch = localSearch
-      ? (p.title?.toLowerCase().includes(localSearch.toLowerCase()) ||
-        p.prompt_text?.toLowerCase().includes(localSearch.toLowerCase()))
+    // Search: flexible (searches title, description, and prompt_text)
+    // Use searchTerm (from URL) for filtering, not localSearch (input state)
+    const matchSearch = searchTerm
+      ? (
+          p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.prompt_text?.toLowerCase().includes(searchTerm.toLowerCase())
+        )
       : true;
 
     if (urlModel && !matchModel) {
@@ -202,12 +229,16 @@ const Home = ({ aiFilter }) => {
   });
 
   // Check if any filter is active
-  const isFiltered = urlModel || urlCategory || localSearch;
+  const isFiltered = urlModel || urlCategory || searchTerm;
 
   return (
     <div>
       {/* Hero Section with Search Bar */}
-      <Hero />
+      <Hero 
+        searchValue={localSearch}
+        onSearchChange={setLocalSearch}
+        onSearchSubmit={handleSearch}
+      />
 
       {/* STREAMING-STYLE MARQUEE SECTIONS - Only show on homepage (no filters) */}
       {!isFiltered && (
@@ -224,7 +255,7 @@ const Home = ({ aiFilter }) => {
           {!marqueeLoading && !marqueeError && (
             <>
               <MarqueeSection 
-                title="Trending on Midjourney" 
+                title="Midjourney" 
                 items={midjourneyPrompts} 
                 direction="left" 
               />

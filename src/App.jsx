@@ -11,6 +11,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import AdminUpload from './pages/AdminUpload';
 import Library from './pages/Library';
+import Settings from './pages/Settings';
 
 function App() {
   const [aiFilter, setAiFilter] = useState({ tool: null, type: null });
@@ -33,6 +34,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/library" element={<Library />} />
+            <Route path="/settings" element={<Settings />} />
             
             {/* Protected Admin Routes */}
             <Route 
